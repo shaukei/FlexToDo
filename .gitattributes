@@ -1,0 +1,19 @@
+# 设置所有文件的行结束符处理
+* text=auto
+
+# 特定文件类型的行结束符设置
+*.cs text eol=crlf
+*.xaml text eol=crlf
+*.csproj text eol=crlf
+*.sln text eol=crlf
+*.props text eol=crlf
+*.md text eol=crlf
+*.json text eol=crlf
+
+# 二进制文件不处理行结束符
+*.dll binary
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary

@@ -1,0 +1,27 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- 版本信息 -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    <!-- 产品信息 -->
+    <Product>FlexToDo</Product>
+    <AssemblyTitle>FlexToDo</AssemblyTitle>
+    <AssemblyDescription>轻量级悬浮待办事项工具</AssemblyDescription>
+    <Copyright>Copyright © 2025 FlexToDo</Copyright>
+    
+    <!-- 编译配置 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    
+    <!-- 代码分析 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+
+</Project>

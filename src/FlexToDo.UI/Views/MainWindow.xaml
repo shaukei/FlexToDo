@@ -1,0 +1,378 @@
+<Window x:Class="FlexToDo.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="FlexToDo"
+        Width="{Binding WindowWidth}" Height="600"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        Left="{Binding WindowLeft}"
+        Top="{Binding WindowTop}">
+
+    <Window.Resources>
+        
+        <!-- 紧急程度颜色定义 -->
+        <SolidColorBrush x:Key="CriticalBrush" Color="#ef4444"/>
+        <SolidColorBrush x:Key="HighBrush" Color="#f97316"/>
+        <SolidColorBrush x:Key="MediumBrush" Color="#eab308"/>
+        <SolidColorBrush x:Key="LowBrush" Color="#22c55e"/>
+        
+        <!-- 渐变背景 - 背景水印模式 -->
+        <LinearGradientBrush x:Key="UrgencyGradient" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#ef4444" Offset="0"/>
+            <GradientStop Color="#f97316" Offset="0.25"/>
+            <GradientStop Color="#eab308" Offset="0.5"/>
+            <GradientStop Color="#22c55e" Offset="0.75"/>
+            <GradientStop Color="Transparent" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- 交互模式背景 -->
+        <SolidColorBrush x:Key="InteractionBackgroundBrush" Color="#111827" Opacity="0.85"/>
+        <SolidColorBrush x:Key="InteractionBorderBrush" Color="#4B5563" Opacity="0.3"/>
+
+        <!-- 文本颜色 -->
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="White" Opacity="0.95"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="White" Opacity="0.7"/>
+        <SolidColorBrush x:Key="TextTertiaryBrush" Color="White" Opacity="0.5"/>
+
+        <!-- 按钮样式 -->
+        <Style x:Key="SmallButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="MinWidth" Value="20"/>
+            <Setter Property="MinHeight" Value="20"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                Padding="4,2">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <SolidColorBrush Color="White" Opacity="0.1"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 快速输入框样式 -->
+        <Style x:Key="QuickAddTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                        Margin="{TemplateBinding Padding}"
+                                        VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 待办事项卡片样式 -->
+        <Style x:Key="TodoItemCardStyle" TargetType="Border">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="White" Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background">
+                        <Setter.Value>
+                            <SolidColorBrush Color="White" Opacity="0.15"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 转换器 -->
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        
+    </Window.Resources>
+
+    <!-- 主容器 -->
+    <Border Name="MainBorder" CornerRadius="2,0,0,2">
+        <Grid>
+            
+            <!-- 列表界面（始终可见） -->
+            <Border Name="InteractionMode"
+                    Background="{StaticResource InteractionBackgroundBrush}"
+                    CornerRadius="12,0,0,12"
+                    BorderBrush="{StaticResource InteractionBorderBrush}"
+                    BorderThickness="1">
+                
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- 标题栏 -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <!-- 测试固定文本 -->
+                        <TextBlock Text="🚀 FlexToDo 交互模式"
+                                  Foreground="White"
+                                  FontSize="16"
+                                  FontWeight="Bold"
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding HeaderTitle}"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  FontSize="14"
+                                  FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding HeaderSubtitle}"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  FontSize="11"
+                                  Margin="0,2,0,0"/>
+                    </StackPanel>
+                    
+                    <!-- 待办列表 -->
+                    <ScrollViewer Grid.Row="1" 
+                                  VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        
+                        <!-- 紧急事项组 -->
+                        <StackPanel>
+                            <!-- 紧急事项 -->
+                            <ItemsControl ItemsSource="{Binding CriticalTodos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TodoItemCardStyle}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- 紧急程度图标 -->
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{Binding UrgencyIcon}"
+                                                          FontSize="16"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,8,0"/>
+                                                
+                                                <!-- 事项内容 -->
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Title}"
+                                                              Foreground="{StaticResource TextPrimaryBrush}"
+                                                              FontSize="13"
+                                                              TextWrapping="Wrap"
+                                                              MaxWidth="180"/>
+                                                    <TextBlock Text="{Binding DeadlineText}"
+                                                              Foreground="{Binding UrgencyColor}"
+                                                              FontSize="11"
+                                                              Margin="0,4,0,0"
+                                                              Visibility="{Binding Deadline, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                </StackPanel>
+                                                
+                                                <!-- 操作按钮 -->
+                                                <StackPanel Grid.Column="2" 
+                                                           Orientation="Horizontal" 
+                                                           VerticalAlignment="Center">
+                                                    <Button Content="✓" 
+                                                           Style="{StaticResource SmallButtonStyle}"
+                                                           Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           CommandParameter="{Binding}"
+                                                           ToolTip="标记完成"/>
+                                                    <Button Content="⏰" 
+                                                           Style="{StaticResource SmallButtonStyle}"
+                                                           Command="{Binding DataContext.PostponeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           CommandParameter="{Binding}"
+                                                           ToolTip="延期1小时"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 重要事项 -->
+                            <ItemsControl ItemsSource="{Binding HighTodos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TodoItemCardStyle}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- 重要程度图标 -->
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{Binding UrgencyIcon}"
+                                                          FontSize="16"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,8,0"/>
+                                                
+                                                <!-- 事项内容 -->
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding Title}"
+                                                              Foreground="{StaticResource TextPrimaryBrush}"
+                                                              FontSize="13"
+                                                              TextWrapping="Wrap"
+                                                              MaxWidth="180"/>
+                                                    <TextBlock Text="{Binding DeadlineText}"
+                                                              Foreground="{StaticResource TextSecondaryBrush}"
+                                                              FontSize="11"
+                                                              Margin="0,4,0,0"
+                                                              Visibility="{Binding Deadline, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                </StackPanel>
+                                                
+                                                <!-- 操作按钮 -->
+                                                <StackPanel Grid.Column="2" 
+                                                           Orientation="Horizontal" 
+                                                           VerticalAlignment="Center">
+                                                    <Button Content="✓" 
+                                                           Style="{StaticResource SmallButtonStyle}"
+                                                           Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 今日待办 -->
+                            <ItemsControl ItemsSource="{Binding TodayTodos}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource TodoItemCardStyle}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- 事项内容 -->
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{Binding Title}"
+                                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                                          FontSize="12"
+                                                          TextWrapping="Wrap"
+                                                          VerticalAlignment="Center"
+                                                          MaxWidth="200"/>
+                                                
+                                                <!-- 操作按钮 -->
+                                                <Button Grid.Column="1"
+                                                       Content="✓" 
+                                                       Style="{StaticResource SmallButtonStyle}"
+                                                       Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                       CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 空状态提示 -->
+                            <Border Visibility="{Binding HasNoTodos, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Background="{StaticResource InteractionBackgroundBrush}"
+                                    CornerRadius="8"
+                                    Padding="20"
+                                    Margin="0,20,0,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🎉" 
+                                              FontSize="32" 
+                                              HorizontalAlignment="Center"
+                                              Margin="0,0,0,8"/>
+                                    <TextBlock Text="暂无待办事项"
+                                              Foreground="{StaticResource TextSecondaryBrush}"
+                                              FontSize="14"
+                                              HorizontalAlignment="Center"/>
+                                    <TextBlock Text="使用快速添加功能创建新的待办事项"
+                                              Foreground="{StaticResource TextTertiaryBrush}"
+                                              FontSize="11"
+                                              HorizontalAlignment="Center"
+                                              Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                    
+                    <!-- 快速添加 -->
+                    <Border Grid.Row="2" 
+                           Background="{StaticResource InteractionBackgroundBrush}"
+                           CornerRadius="8"
+                           Padding="12"
+                           Margin="0,16,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- 输入框 -->
+                            <TextBox Grid.Column="0"
+                                    Name="QuickAddTextBox"
+                                    Text="{Binding QuickAddText, UpdateSourceTrigger=PropertyChanged}"
+                                    Style="{StaticResource QuickAddTextBoxStyle}"
+                                    VerticalAlignment="Center">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Return" Command="{Binding QuickAddCommand}"/>
+                                    <KeyBinding Key="Escape" Command="{Binding CancelCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
+                            
+                            <!-- 占位符文本 -->
+                            <TextBlock Grid.Column="0"
+                                      Text="输入新的待办事项... (Enter保存, Esc退出)"
+                                      Foreground="{StaticResource TextTertiaryBrush}"
+                                      FontSize="13"
+                                      IsHitTestVisible="False"
+                                      VerticalAlignment="Center"
+                                      Margin="4,0,0,0"
+                                      Visibility="{Binding IsQuickAddEmpty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            
+                            <!-- 添加按钮 -->
+                            <Button Grid.Column="1"
+                                   Content="+"
+                                   Style="{StaticResource SmallButtonStyle}"
+                                   Command="{Binding QuickAddCommand}"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   ToolTip="添加待办事项"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

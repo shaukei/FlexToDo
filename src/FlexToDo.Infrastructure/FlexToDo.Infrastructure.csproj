@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Infrastructure项目特有配置 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FlexToDo.Core\FlexToDo.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+</Project>
