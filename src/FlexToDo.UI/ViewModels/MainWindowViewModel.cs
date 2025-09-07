@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Windows;
 
 namespace FlexToDo.UI.ViewModels;
 
@@ -15,7 +16,10 @@ public class MainWindowViewModel : INotifyPropertyChanged
 {
     private readonly ITodoService _todoService;
     private WindowStateController? _stateController;
+    private MouseHoverManager? _mouseHoverManager;
     private string _quickAddText = string.Empty;
+    private bool _isInputFocused = false;
+    private TodoItem? _hoveredTodoItem;
 
     public MainWindowViewModel(ITodoService todoService, WindowStateController? stateController)
     {
@@ -49,6 +53,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             if (SetProperty(ref _quickAddText, value))
             {
                 OnPropertyChanged(nameof(IsQuickAddEmpty));
+                OnPropertyChanged(nameof(ShouldShowPlaceholder));
             }
         }
     }
@@ -59,14 +64,43 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public bool IsQuickAddEmpty => string.IsNullOrWhiteSpace(QuickAddText);
 
     /// <summary>
-    /// 是否为背景模式（已废弃，界面始终显示列表）
+    /// 输入框是否有焦点
     /// </summary>
-    public bool IsBackgroundMode => false;
+    public bool IsInputFocused
+    {
+        get => _isInputFocused;
+        set
+        {
+            if (SetProperty(ref _isInputFocused, value))
+            {
+                OnPropertyChanged(nameof(ShouldShowPlaceholder));
+            }
+        }
+    }
 
     /// <summary>
-    /// 是否为交互模式（已废弃，界面始终显示列表）
+    /// 是否应该显示占位符（无内容且无焦点时显示）
     /// </summary>
-    public bool IsInteractionMode => true;
+    public bool ShouldShowPlaceholder => IsQuickAddEmpty && !IsInputFocused;
+
+    /// <summary>
+    /// 当前悬停的待办项
+    /// </summary>
+    public TodoItem? HoveredTodoItem
+    {
+        get => _hoveredTodoItem;
+        set => SetProperty(ref _hoveredTodoItem, value);
+    }
+
+    /// <summary>
+    /// 窗口状态控制器
+    /// </summary>
+    public WindowStateController? StateController => _stateController;
+
+    /// <summary>
+    /// 鼠标悬停管理器
+    /// </summary>
+    public MouseHoverManager? MouseHoverManager => _mouseHoverManager;
 
     /// <summary>
     /// 窗口左边距（屏幕右边缘）
@@ -206,6 +240,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public ICommand? PostponeCommand { get; private set; }
     public ICommand? CancelCommand { get; private set; }
     public ICommand? ClearCompletedCommand { get; private set; }
+    public ICommand? InputGotFocusCommand { get; private set; }
+    public ICommand? InputLostFocusCommand { get; private set; }
 
     private void InitializeCommands()
     {
@@ -333,6 +369,18 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             System.Diagnostics.Debug.WriteLine($"清除已完成事项失败: {ex.Message}");
         }
+    }
+
+    private void ExecuteInputGotFocus()
+    {
+        IsInputFocused = true;
+        System.Diagnostics.Debug.WriteLine("输入框获得焦点");
+    }
+
+    private void ExecuteInputLostFocus()
+    {
+        IsInputFocused = false;
+        System.Diagnostics.Debug.WriteLine("输入框失去焦点");
     }
 
     #endregion
@@ -486,6 +534,145 @@ public class MainWindowViewModel : INotifyPropertyChanged
         
         System.Diagnostics.Debug.WriteLine("WindowStateController引用已更新");
     }
+
+    /// <summary>
+    /// 初始化鼠标悬停管理器
+    /// </summary>
+    public void InitializeMouseHoverManager(Window window)
+    {
+        try
+        {
+            if (_mouseHoverManager != null)
+            {
+                _mouseHoverManager.DisableHoverDetection();
+                _mouseHoverManager.ItemHoverEnter -= OnItemHoverEnter;
+                _mouseHoverManager.ItemHoverLeave -= OnItemHoverLeave;
+                _mouseHoverManager.WindowHoverEnter -= OnWindowHoverEnter;
+                _mouseHoverManager.WindowHoverLeave -= OnWindowHoverLeave;
+                _mouseHoverManager.Dispose();
+            }
+
+            _mouseHoverManager = new MouseHoverManager(window);
+            
+            // 订阅事件
+            _mouseHoverManager.ItemHoverEnter += OnItemHoverEnter;
+            _mouseHoverManager.ItemHoverLeave += OnItemHoverLeave;
+            _mouseHoverManager.WindowHoverEnter += OnWindowHoverEnter;
+            _mouseHoverManager.WindowHoverLeave += OnWindowHoverLeave;
+
+            System.Diagnostics.Debug.WriteLine("鼠标悬停管理器初始化完成");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"初始化鼠标悬停管理器失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 启用鼠标悬停检测（在背景模式下使用）
+    /// </summary>
+    public void EnableMouseHover()
+    {
+        try
+        {
+            if (_mouseHoverManager != null && _stateController?.IsBackgroundMode == true)
+            {
+                _mouseHoverManager.EnableHoverDetection();
+                System.Diagnostics.Debug.WriteLine("鼠标悬停检测已启用");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"启用鼠标悬停检测失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 禁用鼠标悬停检测
+    /// </summary>
+    public void DisableMouseHover()
+    {
+        try
+        {
+            _mouseHoverManager?.DisableHoverDetection();
+            HoveredTodoItem = null;
+            System.Diagnostics.Debug.WriteLine("鼠标悬停检测已禁用");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"禁用鼠标悬停检测失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 实现命中测试：确定鼠标位置对应的待办项
+    /// </summary>
+    public TodoItem? HitTestTodoItem(Point windowPosition)
+    {
+        try
+        {
+            // 估算待办项的位置（基于固定的布局参数）
+            const double HEADER_HEIGHT = 60;  // 标题栏高度
+            const double ITEM_HEIGHT = 60;    // 每个待办项高度
+            const double MARGIN = 16;         // 边距
+            
+            var relativeY = windowPosition.Y - HEADER_HEIGHT - MARGIN;
+            
+            if (relativeY < 0)
+                return null;
+
+            var itemIndex = (int)(relativeY / ITEM_HEIGHT);
+            
+            // 获取所有可见的待办项
+            var allItems = new List<TodoItem>();
+            allItems.AddRange(CriticalTodos);
+            allItems.AddRange(HighTodos);
+            allItems.AddRange(TodayTodos);
+
+            if (itemIndex >= 0 && itemIndex < allItems.Count)
+            {
+                return allItems[itemIndex];
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"命中测试异常: {ex.Message}");
+            return null;
+        }
+    }
+
+    #region 鼠标悬停事件处理
+
+    private void OnItemHoverEnter(object? sender, TodoItemHoverEventArgs e)
+    {
+        HoveredTodoItem = e.TodoItem;
+        System.Diagnostics.Debug.WriteLine($"待办项悬停进入: {e.TodoItem.Title}");
+    }
+
+    private void OnItemHoverLeave(object? sender, TodoItemHoverEventArgs e)
+    {
+        HoveredTodoItem = null;
+        System.Diagnostics.Debug.WriteLine($"待办项悬停离开: {e.TodoItem.Title}");
+    }
+
+    private void OnWindowHoverEnter(object? sender, WindowHoverEventArgs e)
+    {
+        // 可以在这里做窗口悬停的视觉效果
+        var hoveredItem = HitTestTodoItem(e.WindowPosition);
+        if (hoveredItem != HoveredTodoItem)
+        {
+            HoveredTodoItem = hoveredItem;
+        }
+    }
+
+    private void OnWindowHoverLeave(object? sender, WindowHoverEventArgs e)
+    {
+        HoveredTodoItem = null;
+    }
+
+    #endregion
 
     #endregion
 }

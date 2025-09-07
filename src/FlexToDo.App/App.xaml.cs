@@ -36,7 +36,7 @@ public partial class App : WpfApplication
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"应用程序启动失败: {ex.Message}");
-            WpfMessageBox.Show($"应用程序启动失败: {ex.Message}", "FlexToDo", MessageBoxButton.OK, MessageBoxImage.Error);
+            WpfMessageBox.Show($"应用程序启动失败: {ex.Message}", "Flex ToDo", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
         }
     }

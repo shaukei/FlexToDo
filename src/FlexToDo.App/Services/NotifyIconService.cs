@@ -30,7 +30,7 @@ public class NotifyIconService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _defaultIcon,
-            Text = "FlexToDo - 悬浮待办事项工具",
+            Text = "Flex ToDo - 悬浮待办事项工具",
             Visible = true
         };
 
@@ -83,8 +83,8 @@ public class NotifyIconService : IDisposable
         _notifyIcon.Icon = hasUrgentTodos ? _urgentIcon : _defaultIcon;
         
         var tooltip = hasUrgentTodos 
-            ? "FlexToDo - 有紧急待办事项！"
-            : "FlexToDo - 悬浮待办事项工具";
+            ? "Flex ToDo - 有紧急待办事项！"
+            : "Flex ToDo - 悬浮待办事项工具";
             
         _notifyIcon.Text = tooltip;
     }
@@ -104,7 +104,7 @@ public class NotifyIconService : IDisposable
     private void ShowSettings()
     {
         // TODO: 实现设置界面
-        System.Windows.MessageBox.Show("设置功能即将推出！", "FlexToDo", 
+        System.Windows.MessageBox.Show("设置功能即将推出！", "Flex ToDo", 
             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
 
@@ -113,7 +113,7 @@ public class NotifyIconService : IDisposable
     /// </summary>
     private void ShowAbout()
     {
-        var aboutText = "FlexToDo v1.0.0\n\n" +
+        var aboutText = "Flex ToDo v1.0.0\n\n" +
                        "一个轻量级的悬浮待办事项工具\n" +
                        "让您随时了解重要事项，不错过任何deadline\n\n" +
                        "快捷键:\n" +
@@ -123,7 +123,7 @@ public class NotifyIconService : IDisposable
                        "• Ctrl+Alt+C: 清除已完成\n\n" +
                        "开发: Claude Code Assistant";
 
-        System.Windows.MessageBox.Show(aboutText, "关于 FlexToDo", 
+        System.Windows.MessageBox.Show(aboutText, "关于 Flex ToDo", 
             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
     }
 

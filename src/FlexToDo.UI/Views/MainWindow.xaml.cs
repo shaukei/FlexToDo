@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using FlexToDo.UI.ViewModels;
 using FlexToDo.Infrastructure.Win32;
+using FlexToDo.Core.Models;
 
 namespace FlexToDo.UI.Views;
 
@@ -12,6 +13,7 @@ public partial class MainWindow : Window
 {
     private readonly GlobalHotkeyManager _hotkeyManager;
     private WindowStateController? _stateController;
+    private GlobalMouseMonitor? _mouseMonitor;
 
     public MainWindow(MainWindowViewModel viewModel, GlobalHotkeyManager hotkeyManager, WindowStateController? stateController)
     {
@@ -30,18 +32,91 @@ public partial class MainWindow : Window
         
         // 键盘事件处理
         KeyDown += MainWindow_KeyDown;
+
+        // 在构造函数中直接创建全局鼠标监听器
+        Console.WriteLine("[FlexToDo] MainWindow constructor called");
+        
+        // 由于背景穿透模式会阻止WPF鼠标事件，我们必须使用Win32全局钩子
+        _mouseMonitor = new FlexToDo.Infrastructure.Win32.GlobalMouseMonitor();
+        Console.WriteLine("[FlexToDo] GlobalMouseMonitor created as instance member");
+        
+        _mouseMonitor.MouseMove += (sender, e) => {
+            try 
+            {
+                // 检查鼠标是否在窗口内
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                if (hwnd != IntPtr.Zero && FlexToDo.Infrastructure.Win32.Win32Api.GetWindowRect(hwnd, out var rect))
+                {
+                    bool isInWindow = e.ScreenPosition.X >= rect.Left && e.ScreenPosition.X <= rect.Right &&
+                                      e.ScreenPosition.Y >= rect.Top && e.ScreenPosition.Y <= rect.Bottom;
+                    
+                    if (isInWindow)
+                    {
+                        // 转换为窗口相对坐标
+                        var windowPosition = new System.Windows.Point(
+                            e.ScreenPosition.X - rect.Left,
+                            e.ScreenPosition.Y - rect.Top);
+                        
+                        Console.WriteLine($"[FlexToDo] Mouse over window at screen({e.ScreenPosition.X}, {e.ScreenPosition.Y}) window({windowPosition.X}, {windowPosition.Y})");
+                        
+                        Application.Current.Dispatcher.BeginInvoke(() => {
+                            // 设置窗口背景高亮
+                            this.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(245, 158, 11)) { Opacity = 0.2 };
+                            
+                            // 检测具体悬停的待办事项
+                            var hoveredItem = HitTestTodoItem(windowPosition);
+                            if (DataContext is MainWindowViewModel viewModel)
+                            {
+                                viewModel.HoveredTodoItem = hoveredItem;
+                            }
+                        });
+                    }
+                    else
+                    {
+                        Application.Current.Dispatcher.BeginInvoke(() => {
+                            this.Background = System.Windows.Media.Brushes.Transparent;
+                            
+                            // 清除悬停状态
+                            if (DataContext is MainWindowViewModel viewModel)
+                            {
+                                viewModel.HoveredTodoItem = null;
+                            }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FlexToDo] MouseMove error: {ex.Message}");
+            }
+        };
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            System.Diagnostics.Debug.WriteLine("主窗口加载完成");
+            System.Diagnostics.Debug.WriteLine("[FlexToDo] MainWindow loaded successfully");
+            
+            // 初始化鼠标悬停管理器
+            System.Diagnostics.Debug.WriteLine($"[FlexToDo] DataContext type: {DataContext?.GetType().Name}");
+            if (DataContext is MainWindowViewModel viewModel)
+            {
+                System.Diagnostics.Debug.WriteLine("[FlexToDo] Initializing mouse hover manager...");
+                viewModel.InitializeMouseHoverManager(this);
+                // 在背景模式下启用悬停检测
+                viewModel.EnableMouseHover();
+                System.Diagnostics.Debug.WriteLine("[FlexToDo] Mouse hover manager initialized successfully");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[FlexToDo] ERROR: DataContext is not MainWindowViewModel");
+            }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"窗口加载失败: {ex.Message}");
-            MessageBox.Show($"应用程序加载失败: {ex.Message}", "FlexToDo", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"应用程序加载失败: {ex.Message}", "Flex ToDo", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -169,6 +244,7 @@ public partial class MainWindow : Window
     {
         try
         {
+            _mouseMonitor?.Dispose();
             _hotkeyManager?.Dispose();
             _stateController?.Dispose();
             Application.Current.Shutdown();
@@ -199,13 +275,52 @@ public partial class MainWindow : Window
                 _stateController.ForceBackgroundMode();
                 System.Diagnostics.Debug.WriteLine("窗口句柄创建后，强制设置背景穿透模式");
             }
+
+            // 启动全局鼠标监听器（窗口句柄创建后）
+            Console.WriteLine("[FlexToDo] OnSourceInitialized: Starting mouse monitoring...");
+            if (_mouseMonitor != null)
+            {
+                bool started = _mouseMonitor.StartMonitoring();
+                Console.WriteLine($"[FlexToDo] Mouse monitoring started: {started}");
+                if (!started)
+                {
+                    Console.WriteLine("[FlexToDo] WARNING: Failed to start mouse monitoring");
+                }
+            }
+            else
+            {
+                Console.WriteLine("[FlexToDo] ERROR: Mouse monitor is null");
+            }
+
+            // 强制初始化鼠标悬停管理器
+            System.Diagnostics.Debug.WriteLine("[FlexToDo] OnSourceInitialized: Force initializing mouse hover");
+            if (DataContext is MainWindowViewModel viewModel)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("[FlexToDo] Creating mouse hover manager...");
+                    viewModel.InitializeMouseHoverManager(this);
+                    System.Diagnostics.Debug.WriteLine("[FlexToDo] Enabling mouse hover detection...");
+                    viewModel.EnableMouseHover();
+                    System.Diagnostics.Debug.WriteLine("[FlexToDo] Mouse hover setup completed in OnSourceInitialized");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[FlexToDo] Mouse hover setup failed: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[FlexToDo] Stack trace: {ex.StackTrace}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[FlexToDo] DataContext is not MainWindowViewModel: {DataContext?.GetType().Name}");
+            }
             
             System.Diagnostics.Debug.WriteLine("窗口句柄已创建，热键管理器和窗口状态初始化完成");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"设置初始窗口状态失败: {ex.Message}");
-            MessageBox.Show($"热键初始化失败: {ex.Message}", "FlexToDo", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"热键初始化失败: {ex.Message}", "Flex ToDo", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -215,6 +330,23 @@ public partial class MainWindow : Window
     public void ResetIdleTimer()
     {
         _stateController?.ResetAutoReturnTimer();
+    }
+
+    /// <summary>
+    /// 初始化鼠标悬停管理器（在构造函数中调用）
+    /// </summary>
+    private void InitializeMouseHoverManager(MainWindowViewModel viewModel)
+    {
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("[FlexToDo] Starting mouse hover manager initialization");
+            viewModel.InitializeMouseHoverManager(this);
+            System.Diagnostics.Debug.WriteLine("[FlexToDo] Mouse hover manager initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[FlexToDo] Mouse hover manager initialization failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -246,11 +378,98 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// 命中测试：确定鼠标位置对应的待办项
+    /// </summary>
+    private TodoItem? HitTestTodoItem(Point windowPosition)
+    {
+        try
+        {
+            if (DataContext is not MainWindowViewModel viewModel)
+                return null;
+
+            // 基于UI布局的近似计算
+            // 标题栏高度约50px，边距16px
+            double contentStartY = 50 + 16;
+            double leftMargin = 16;
+            double rightMargin = 16;
+            double itemHeight = 60; // 每个待办项约60px高（包含边距）
+            
+            // 检查是否在内容区域内
+            if (windowPosition.Y < contentStartY || 
+                windowPosition.X < leftMargin || 
+                windowPosition.X > (Width - rightMargin))
+            {
+                return null;
+            }
+
+            // 计算当前的垂直偏移
+            double relativeY = windowPosition.Y - contentStartY;
+            
+            // 获取所有待办项（按显示顺序）
+            var allTodos = new List<TodoItem>();
+            
+            if (viewModel.CriticalTodos != null)
+                allTodos.AddRange(viewModel.CriticalTodos);
+            if (viewModel.HighTodos != null)
+                allTodos.AddRange(viewModel.HighTodos);
+            if (viewModel.TodayTodos != null)
+                allTodos.AddRange(viewModel.TodayTodos);
+
+            // 根据垂直位置确定悬停的待办项
+            int itemIndex = (int)(relativeY / itemHeight);
+            
+            if (itemIndex >= 0 && itemIndex < allTodos.Count)
+            {
+                var item = allTodos[itemIndex];
+                Console.WriteLine($"[FlexToDo] Hit test found item: {item.Title} at index {itemIndex}");
+                return item;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FlexToDo] Hit test error: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 更新状态控制器引用（用于解决循环依赖问题）
     /// </summary>
     public void UpdateStateController(WindowStateController stateController)
     {
         _stateController = stateController ?? throw new ArgumentNullException(nameof(stateController));
+        
+        // 启用鼠标悬停检测
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            System.Diagnostics.Debug.WriteLine("[FlexToDo] Enabling mouse hover detection after StateController update");
+            viewModel.EnableMouseHover();
+        }
+        
         System.Diagnostics.Debug.WriteLine("MainWindow StateController 引用已更新");
+    }
+
+    /// <summary>
+    /// 输入框获得焦点事件处理
+    /// </summary>
+    private void QuickAddTextBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.InputGotFocusCommand?.Execute(null);
+        }
+    }
+
+    /// <summary>
+    /// 输入框失去焦点事件处理
+    /// </summary>
+    private void QuickAddTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.InputLostFocusCommand?.Execute(null);
+        }
     }
 }

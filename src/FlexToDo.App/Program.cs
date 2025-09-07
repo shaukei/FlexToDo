@@ -28,7 +28,7 @@ public static class Program
             // 确保单实例运行
             if (!EnsureSingleInstance())
             {
-                WpfMessageBox.Show("FlexToDo 已在运行中。", "FlexToDo", MessageBoxButton.OK, MessageBoxImage.Information);
+                WpfMessageBox.Show("Flex ToDo 已在运行中。", "Flex ToDo", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -142,7 +142,7 @@ public static class Program
     {
         var message = $"应用程序遇到致命错误: {ex.Message}\n\n是否要查看详细信息?";
         
-        var result = WpfMessageBox.Show(message, "FlexToDo - 致命错误", 
+        var result = WpfMessageBox.Show(message, "Flex ToDo - 致命错误", 
             MessageBoxButton.YesNo, MessageBoxImage.Error);
 
         if (result == MessageBoxResult.Yes)

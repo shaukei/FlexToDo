@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="clr-namespace:FlexToDo.UI.Converters"
         mc:Ignorable="d"
-        Title="FlexToDo"
+        Title="Flex ToDo"
         Width="{Binding WindowWidth}" Height="600"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -16,6 +17,21 @@
         Top="{Binding WindowTop}">
 
     <Window.Resources>
+        
+        <!-- 转换器 -->
+        <converters:TodoItemHoverConverter x:Key="TodoItemHoverConverter"/>
+        
+        <!-- 科技感悬停颜色定义 -->
+        <Color x:Key="HoverBackgroundColor">#581c87</Color>
+        <Color x:Key="HoverBorderColor">#8b5cf6</Color>
+        <Color x:Key="HoverGlowColor">#a855f7</Color>
+        
+        <SolidColorBrush x:Key="HoverBackgroundBrush" 
+                         Color="{StaticResource HoverBackgroundColor}" 
+                         Opacity="0.3"/>
+        <SolidColorBrush x:Key="HoverBorderBrush" 
+                         Color="{StaticResource HoverBorderColor}" 
+                         Opacity="0.85"/>
         
         <!-- 紧急程度颜色定义 -->
         <SolidColorBrush x:Key="CriticalBrush" Color="#ef4444"/>
@@ -112,11 +128,36 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background">
                         <Setter.Value>
-                            <SolidColorBrush Color="White" Opacity="0.15"/>
+                            <SolidColorBrush Color="{StaticResource HoverBackgroundColor}" Opacity="0.2"/>
                         </Setter.Value>
                     </Setter>
+                    <Setter Property="BorderBrush">
+                        <Setter.Value>
+                            <SolidColorBrush Color="{StaticResource HoverBorderColor}" Opacity="0.6"/>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="BorderThickness" Value="1"/>
                 </Trigger>
+                <!-- 全局悬停高亮触发器（背景穿透模式） -->
+                <DataTrigger Value="True">
+                    <DataTrigger.Binding>
+                        <MultiBinding Converter="{StaticResource TodoItemHoverConverter}">
+                            <Binding Path="."/>
+                            <Binding Path="DataContext.HoveredTodoItem" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                        </MultiBinding>
+                    </DataTrigger.Binding>
+                    <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource HoverBorderBrush}"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </DataTrigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- 悬停高亮样式 -->
+        <Style x:Key="HoveredTodoItemCardStyle" TargetType="Border" BasedOn="{StaticResource TodoItemCardStyle}">
+            <Setter Property="Background" Value="{StaticResource HoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource HoverBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
 
         <!-- 转换器 -->
@@ -144,13 +185,6 @@
                     
                     <!-- 标题栏 -->
                     <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                        <!-- 测试固定文本 -->
-                        <TextBlock Text="🚀 FlexToDo 交互模式"
-                                  Foreground="White"
-                                  FontSize="16"
-                                  FontWeight="Bold"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,0,0,8"/>
                         <TextBlock Text="{Binding HeaderTitle}"
                                   Foreground="{StaticResource TextPrimaryBrush}"
                                   FontSize="14"
@@ -204,7 +238,10 @@
                                                 <!-- 操作按钮 -->
                                                 <StackPanel Grid.Column="2" 
                                                            Orientation="Horizontal" 
-                                                           VerticalAlignment="Center">
+                                                           VerticalAlignment="Center"
+                                                           Visibility="{Binding DataContext.StateController.ShouldShowActionButtons, 
+                                                                        RelativeSource={RelativeSource AncestorType=Window}, 
+                                                                        Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <Button Content="✓" 
                                                            Style="{StaticResource SmallButtonStyle}"
                                                            Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -258,7 +295,10 @@
                                                 <!-- 操作按钮 -->
                                                 <StackPanel Grid.Column="2" 
                                                            Orientation="Horizontal" 
-                                                           VerticalAlignment="Center">
+                                                           VerticalAlignment="Center"
+                                                           Visibility="{Binding DataContext.StateController.ShouldShowActionButtons, 
+                                                                        RelativeSource={RelativeSource AncestorType=Window}, 
+                                                                        Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <Button Content="✓" 
                                                            Style="{StaticResource SmallButtonStyle}"
                                                            Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -294,6 +334,9 @@
                                                 <Button Grid.Column="1"
                                                        Content="✓" 
                                                        Style="{StaticResource SmallButtonStyle}"
+                                                       Visibility="{Binding DataContext.StateController.ShouldShowActionButtons, 
+                                                                    RelativeSource={RelativeSource AncestorType=Window}, 
+                                                                    Converter={StaticResource BooleanToVisibilityConverter}}"
                                                        Command="{Binding DataContext.CompleteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                        CommandParameter="{Binding}"/>
                                             </Grid>
@@ -332,7 +375,9 @@
                            Background="{StaticResource InteractionBackgroundBrush}"
                            CornerRadius="8"
                            Padding="12"
-                           Margin="0,16,0,0">
+                           Margin="0,16,0,0"
+                           Visibility="{Binding StateController.ShouldShowInputArea, 
+                                        Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -344,7 +389,9 @@
                                     Name="QuickAddTextBox"
                                     Text="{Binding QuickAddText, UpdateSourceTrigger=PropertyChanged}"
                                     Style="{StaticResource QuickAddTextBoxStyle}"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center"
+                                    GotFocus="QuickAddTextBox_GotFocus"
+                                    LostFocus="QuickAddTextBox_LostFocus">
                                 <TextBox.InputBindings>
                                     <KeyBinding Key="Return" Command="{Binding QuickAddCommand}"/>
                                     <KeyBinding Key="Escape" Command="{Binding CancelCommand}"/>
@@ -359,7 +406,7 @@
                                       IsHitTestVisible="False"
                                       VerticalAlignment="Center"
                                       Margin="4,0,0,0"
-                                      Visibility="{Binding IsQuickAddEmpty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                      Visibility="{Binding ShouldShowPlaceholder, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             
                             <!-- 添加按钮 -->
                             <Button Grid.Column="1"
