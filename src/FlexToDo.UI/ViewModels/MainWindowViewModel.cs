@@ -180,7 +180,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
             var items = _todoService.Todos
                 .Where(t => !t.IsCompleted && t.Urgency == UrgencyLevel.Critical)
                 .OrderBy(t => t.Deadline ?? DateTime.MaxValue)
-                .Take(3) // 最多显示3个紧急事项
                 .ToList();
 
             return new ObservableCollection<TodoItem>(items);
@@ -197,7 +196,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
             var items = _todoService.Todos
                 .Where(t => !t.IsCompleted && t.Urgency == UrgencyLevel.High)
                 .OrderBy(t => t.Deadline ?? DateTime.MaxValue)
-                .Take(2) // 最多显示2个重要事项
                 .ToList();
 
             return new ObservableCollection<TodoItem>(items);
@@ -205,21 +203,16 @@ public class MainWindowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 今日待办事项
+    /// 普通待办事项（Medium和Low优先级）
     /// </summary>
     public ObservableCollection<TodoItem> TodayTodos
     {
         get
         {
-            var today = DateTime.Today;
-            var tomorrow = today.AddDays(1);
-
             var items = _todoService.Todos
                 .Where(t => !t.IsCompleted && 
-                           (t.Urgency == UrgencyLevel.Medium || t.Urgency == UrgencyLevel.Low) &&
-                           (t.Deadline == null || (t.Deadline >= today && t.Deadline < tomorrow)))
+                           (t.Urgency == UrgencyLevel.Medium || t.Urgency == UrgencyLevel.Low))
                 .OrderBy(t => t.Deadline ?? DateTime.MaxValue)
-                .Take(5) // 最多显示5个今日事项
                 .ToList();
 
             return new ObservableCollection<TodoItem>(items);
@@ -276,8 +269,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
             
             // 刷新视图
             RefreshTodoLists();
-            
-            System.Diagnostics.Debug.WriteLine($"快速添加待办事项: {title}");
         }
         catch (Exception ex)
         {
@@ -393,8 +384,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             await _todoService.LoadDataAsync();
             RefreshTodoLists();
-            
-            System.Diagnostics.Debug.WriteLine("数据加载完成");
         }
         catch (Exception ex)
         {
